@@ -1,0 +1,1775 @@
+<?php
+    $PATH = "/staging/www.kaigo-aruaru.com/";
+    $PATH="http://localhost/";
+    /* ━━━━━━━━━━━━━━━━━━━━━
+     * 共通ファイル読込
+     * ━━━━━━━━━━━━━━━━━━━━ */
+    require_once(dirname(__FILE__)."/helper/helper_stmg.php");
+    require_once(dirname(__FILE__)."/helper/helper.php");
+    require_once(dirname(__FILE__)."/helper/helper_db.php");
+    require_once(dirname(__FILE__)."/helper/helper_db_bnr.php");
+
+    // 共通ファイルの読込パス
+    $include_path = $_SERVER['DOCUMENT_ROOT']._test_folder;
+	/* ━━━━━━━━━━━━━━━━━━━━━
+     * SESSION処理
+     * ━━━━━━━━━━━━━━━━━━━━ */
+    // キャッシュリミッタの設定
+    session_cache_limiter(_ses_limiter_stmg);
+    // SESSION名設定
+    session_name(_ses_name_stmg);
+    // 開始
+    session_start();
+	
+	//Begin rewrite url
+	if($_GET['url']==''&&isset($_SESSION['save'])){
+		unset($_SESSION['save']);
+		}
+	if(isset($_POST['data'])){
+		$_SESSION['save']=$_POST['data'];
+		parse_str($_POST['data'], $get_array);
+		foreach ($get_array as $key => $value) {
+		$_GET[$key]=$value;
+		}
+	}
+	if(!isset($_POST['data'])){
+		if($_GET['url']!=''){
+		parse_str($_SESSION['save'], $get_array);
+		foreach ($get_array as $key => $value) {
+		$_GET[$key]=$value;
+		}
+		}
+		
+	}
+	//End rewrite url
+	/* ━━━━━━━━━━━━━━━━━━━━━
+     * 静的URL処理
+     * ━━━━━━━━━━━━━━━━━━━━ */
+    if ( isset($_GET['static']) ){
+        $_GET = set_StaticData_stmg($_GET['static']);
+    //print_r(($_GET['static']));
+	}
+	
+	/* ━━━━━━━━━━━━━━━━━━━━━
+     * POST処理
+     * ━━━━━━━━━━━━━━━━━━━━ */
+    // 文字コード変換
+    edit_encode_stmg($_POST);
+	//print_r($_POST);
+
+    
+    
+//echo "C:".$_GET['c'];
+	//var_dump($_POST);
+    if($_SERVER["REQUEST_METHOD"] != "POST"){
+        if (isset($_GET['p']) && is_null($_GET['e'])){
+          $pref_data = onGetActionOption(changeGetNewP_stmg('p', $_GET['p'], ''));
+          $list_pref = $pref_data;
+          $list_pref2 = "";
+        } else {
+          $pref_data = onGetActionOption(changeGetNewP_stmg('p', $_GET['e'], ''));
+          $list_pref = "";
+          $list_pref2 = $pref_data;
+          $_GET['p']="";
+        }
+      } else {
+        $list_pref = $_POST['list-pref'];
+        $list_pref2 = $_POST['list-pref2'];
+      }
+
+
+
+
+	// httpsから画面遷移してきた時の制御の為、
+    // pageIdがGETで渡ってきた場合はPOSTに設定する。
+    // ※その後関数で、POSTから配列へ格納している為
+    if ( isset($_GET['pageId']) ){
+        $_POST['pageId'] = $_GET['pageId'];
+    }
+	if ( isset($_GET['list-pref']) ){
+		$_POST['list-pref'] = $_GET['list-pref'];
+    }
+	if ( isset($_GET['list-city']) ){
+		$_POST['list-city'] = $_GET['list-city'];
+    }
+	if ( isset($_GET['list-hiringType']) ){
+		$_POST['list-hiringType'] = $_GET['list-hiringType'];
+    }
+	if ( isset($_GET['list-facility']) ){
+        $_POST['list-facility'] = $_GET['list-facility'];
+    }
+	if ( isset($_GET['list-license']) ){
+        $_POST['list-license'] = $_GET['list-license'];
+    }
+	if ( isset($_GET['list-wkConditions']) ){
+        $_POST['list-wkConditions'] = $_GET['list-wkConditions'];
+    }
+    // GETでのNEWパラメータを変換
+        // エリア
+	if ( isset($_GET['p']) ){
+		$_POST['list-pref'] = changeGetNewP_stmg('p', $_GET['p'], '');
+	        // エリア 市区町村
+		if ( isset($_GET['c']) ){
+			$_POST['list-city'] = changeGetNewP_stmg('c', $_GET['c'], $_POST['list-pref'] );
+	    }
+    }
+        // 沿線
+	if ( isset($_GET['e']) ){
+		$_POST['list-pref2'] = changeGetNewP_stmg('e', $_GET['e'], '');
+	        // 沿線 路線
+		if ( isset($_GET['n']) ){
+			$_POST['list-nearest'] = changeGetNewP_stmg('n', $_GET['n'], $_POST['list-pref2']);
+	    }
+    }
+        // キーワード
+	if ( isset($_GET['k']) ){
+		$_POST['keyword'] = $_GET['k'];
+    }
+        // 働き方
+	if ( isset($_GET['h']) ){
+		$_POST['list-hiringType'] = changeGetNewP_stmg('h', $_GET['h'], '');
+    }
+        // 施設形態
+	if ( isset($_GET['s']) ){
+		$_POST['list-facility'] = changeGetNewP_stmg('s', $_GET['s'], '');
+    }
+        // 希望条件
+	if ( isset($_GET['j']) ){
+		$_POST['list-wkConditions'] = changeGetNewP_stmg('j', $_GET['j'], '');
+    }
+        // 資格
+	if ( isset($_GET['l']) ){
+		$_POST['list-license'] = changeGetNewP_stmg('l', $_GET['l'], '');
+    }
+
+    
+    
+    
+$_POST['pageId'] = _pageId_list_stmg;
+//タイプ別フラグ
+$_POST['list-jobType'][0] = _condition_JobCategory;
+
+    $postData = set_PostData_stmg($_POST);
+    unset($postData['cityGet']);
+
+
+    // TOPページまたは、一覧(自画面)から遷移時
+    if( $postData['pageId'] == _pageId_index_stmg) {
+        setSessionCondition_stmg();
+    }
+    $mode = isset($_GET['mode']) ? $_GET['mode'] : '';
+    if( $postData['pageId'] == _pageId_list_stmg && empty($mode)) {
+        setSessionCondition_stmg();
+    }
+
+    // 検索条件のSESSIONが設定されている場合
+    if( isset( $_SESSION[_ses_key_condition_stmg] ) ) {
+        // SESSIONから検索条件取得
+        $postData = add_postData_stmg($postData, $_SESSION[_ses_key_condition_stmg]);
+    }
+    // 登録情報のSESSIONが設定されている場合
+    if( isset( $_SESSION[_ses_key_insert_stmg] ) ) {
+        // SESSION 初期化
+        unset($_SESSION[_ses_key_insert_stmg]);
+    }
+
+    /* ━━━━━━━━━━━━━━━━━━━━━
+     * GET処理
+     * ━━━━━━━━━━━━━━━━━━━━ */
+    // さらに詳しい条件で検索するかどうか
+    $detail = isset($_GET['detail']) ? htmlspecialchars($_GET['detail']) : false;
+    if ( empty($detail) ){
+        $detail = false;
+    }
+
+    // 表示するページ番号取得
+    if ( isset($_GET['page']) ){
+        // 自画面内POSTバックの場合
+        $page = htmlspecialchars($_GET['page']);
+    }elseif ( $postData['pageId'] != _pageId_list_stmg ){
+        // 他の画面から遷移してきた場合
+        $page = isset($_SESSION[_ses_key_condition_stmg]['pageNo']) ? htmlspecialchars($_SESSION[_ses_key_condition_stmg]['pageNo']) : '1';
+    }
+    if ( empty($page) ){
+        $page = 1;
+    }
+
+    // ページ番号をSESSIONへ設定
+    $_SESSION[_ses_key_condition_stmg]['pageNo'] = $page;
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    // タイトル
+    $title   = '';
+    //$desc    = _description_default_stmg;
+    //$keyword = _keyword_default_stmg;
+    $desc    = '';
+    $h1      = '';
+    $keyword = '';
+    $kuwake  = '';
+    // 検索条件GETパラメータ取得後、編集処理
+    edit_getParameter_stmg($title, $postData);
+    // 都道府県・市区町村
+    if (isset($postData['areaName'])) {
+        $areaName = str_replace("　", "、", $postData['areaName']);
+        $title   .= $areaName;
+        $desc    .= $areaName;
+        $h1      .= $areaName;
+        $keyword .= $areaName . ',';
+
+        if (isset($postData['cityName'])) {
+            $cityName = str_replace(",", "、", $postData['cityName']);
+            $title   .= $cityName;
+            $desc    .= $cityName;
+            $h1      .= $cityName;
+            $keyword .= $postData['cityName'] . ',';
+        }
+        $title   .= 'の';
+        $desc    .= 'の';
+        $h1      .= 'の';
+
+        // 区分け処理
+        if(preg_match('/東京|神奈川|埼玉|千葉|愛知|大阪|福岡|宮城/', $postData['areaName'])){
+            $kuwake = $postData['areaNameAlpha'] . 'です';
+            $option = '';
+
+            if (!empty($postData['jobtypeGet'])){
+                $tmp = preg_split("/,/", $postData['jobtypeGet']);
+                foreach($tmp as $v){
+                    $option .= '-job' . $v;
+                }
+            }
+            if (!empty($postData['emptypeGet'])){
+                $tmp = preg_split("/,/", $postData['emptypeGet']);
+                foreach($tmp as $v){
+                    $option .= '-emp' . $v;
+                }
+            }
+            if (!empty($postData['facilityGet'])){
+                $tmp = preg_split("/,/", $postData['facilityGet']);
+                foreach($tmp as $v){
+                    $option .= '-type' . $v;
+                }
+            }
+            if (!empty($postData['wkConditionsGet'])){
+                $tmp = preg_split("/,/", $postData['wkConditionsGet']);
+                foreach($tmp as $v){
+                    $option .= '-req' . $v;
+                }
+            }
+
+            include( dirname(__FILE__)."/helper/div_" . $postData['areaNameAlpha'] . ".php" );
+            $kuwake = $kuwake_html;
+        }
+    }
+
+    // 職種
+    if (isset($postData['jobTypeName'])) {
+        $jobTypeName   = str_replace("、", "・", $postData['jobTypeName']);
+        $jobTypeName_k = str_replace("、", ",", $postData['jobTypeName']);
+        $title   .= $jobTypeName;
+        $desc    .= $jobTypeName;
+        $h1      .= $jobTypeName;
+        $keyword .= $jobTypeName_k . ',';
+    }elseif(!isset( $postData['empTypeName']) & !isset($postData['facilityName']) & !isset($postData['wkConditionsName'])){
+        $title   .= '介護・保育';
+        $desc    .= '介護・保育';
+        $h1      .= '介護・保育';
+        $keyword .= '介護,保育,';
+    }
+
+    // 雇用形態・施設形態・勤務条件
+    $empTypeName_num      = count(explode("、", $postData['empTypeName']));
+    $facilityName_num     = count(explode("、", $postData['facilityName']));
+    $wkConditionsName_num = count(explode("、", $postData['wkConditionsName']));
+
+    if( ($empTypeName_num > 1) | ($facilityName_num > 1) | ($wkConditionsName_num > 1) ){
+    //if( ($empTypeName_num > 1) & ($facilityName_num > 1) & ($wkConditionsName_num > 1) ){
+        // 項目が1つでも複数ある場合、すべて括弧に収める
+        //$multipleitem  = '（';
+        if(isset($postData['empTypeName']))     { $multipleitem .= $postData['empTypeName'] . '、'; }
+        if(isset($postData['facilityName']))    { $multipleitem .= $postData['facilityName'] . '、'; }
+        if(isset($postData['wkConditionsName'])){ $multipleitem .= $postData['wkConditionsName'] . '、'; };
+        $multipleitem  = mb_substr($multipleitem, 0, -1, "UTF8");
+        $multipleitem = str_replace("（紹介・紹介予定派遣）", "", $multipleitem);
+        //$multipleitem .= '）';
+        //$multipleitem_k = str_replace("^（", "", $multipleitem);
+        $multipleitem_k = str_replace("、", ",", $multipleitem);
+        $multipleitem   = '（' . $multipleitem . '）';
+
+        $title .= '求人募集情報' . $multipleitem . '｜';
+        $desc  .= $multipleitem . _description_default_stmg;
+        $h1    .= $multipleitem . '求人募集情報';
+        $keyword .= $multipleitem_k . ',';
+    }else{
+        $emp = str_replace("（紹介・紹介予定派遣）", "", $postData['empTypeName']);
+        $title .= $emp . $postData['facilityName'] . $postData['wkConditionsName'] . '求人募集情報｜';
+        $desc  .= $emp . $postData['facilityName'] . $postData['wkConditionsName'] . _description_default_stmg;
+        $h1    .= $emp . $postData['facilityName'] . $postData['wkConditionsName'] . '求人募集情報';
+
+        if(isset($postData['empTypeName']))     { $keyword .= $emp . ','; }
+        if(isset($postData['facilityName']))    { $keyword .= $postData['facilityName'] . ','; }
+        if(isset($postData['wkConditionsName'])){ $keyword .= $postData['wkConditionsName'] . ','; }
+    }
+
+    $keyword .= _keyword_default_stmg;
+
+    // 以下 tilteのみ
+    // 都道府県・市区町村
+    if (isset($postData['areaName'])) {
+        $areaName = str_replace("　", "、", $postData['areaName']);
+        $title   .= $areaName . 'の';
+    }
+
+    // 職種
+    if (isset($postData['jobTypeName'])) {
+        $jobTypeName   = str_replace("、", "・", $postData['jobTypeName']);
+        $title   .= $jobTypeName;
+    }elseif(!isset( $postData['empTypeName']) & !isset($postData['facilityName']) & !isset($postData['wkConditionsName'])){
+        $title   .= '介護・保育';
+    }
+
+    // 施設形態
+    if (isset($postData['facilityName'])) {
+        $facilityName   = str_replace("、", "・", $postData['facilityName']);
+        $title   .= $facilityName;
+    }
+
+    $title .= '求人なら、';
+
+    // 職種
+    if (isset($postData['jobTypeName'])) {
+        $jobTypeName   = str_replace("、", "と", $postData['jobTypeName']);
+        $title   .= $jobTypeName . 'の';
+    }elseif(!isset( $postData['empTypeName']) & !isset($postData['facilityName']) & !isset($postData['wkConditionsName'])){
+        $title   .= '介護と保育の';
+    }
+
+    $title .= '転職/派遣求人サイト【せんとなび】';
+
+    /*
+    if ($title == '') {
+        if (isset($postData['areaName'])) {
+            // 地域
+            $title = $postData['areaName'];
+            // 市区町村
+            if (isset($postData['cityName'])) {
+                $title  .= $postData['cityName'];
+                $desc    = $postData['areaName'].$postData['cityName'].'の'.$desc;
+                $keyword = $postData['areaName'].','.$postData['cityName'].','.$keyword;
+            } else {
+                $desc    = $postData['areaName'].'の'.$desc;
+                $keyword = $postData['areaName'].','.$keyword;
+            }
+            $title .= 'の求人情報一覧【せんとなび】';
+        }
+        else {
+            $title = '求人検索一覧【せんとなび】';
+        }
+    }
+    */
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    /* ━━━━━━━━━━━━━━━━━━━━━
+     * 検索結果一覧取得取得
+     * ━━━━━━━━━━━━━━━━━━━━ */
+//     $ret = get_List_MySQL( $page, $postData );
+    
+    //$postData['view_cnt']="999";
+    
+    
+    $ret = get_List_Base_MySQL_stmg( $page, $postData );
+
+    
+    
+    
+    if (empty($ret['error'])) {
+        $RecCnt = $ret['recCnt'];                // レコード件数
+        $recStr = $ret['recStr'];                // 画面表示開始行番号
+        $recEnd = $ret['recEnd'];                // 画面表示終了行番号
+        $paging = $ret['paging'];                // ページング情報
+
+        if($ret['view_cnt']=="") {
+          $paging['limit'] = 20;
+        } else {
+          $paging['limit'] = $ret['view_cnt'];
+        }
+        
+        
+    }else{
+        // エラー情報
+        $err    = $ret['error'];
+    }
+
+    // 都道府県取得(検索条件用)
+    if (is_array($postData['pref'])) {
+        $pref = $postData['pref'][0];
+    }else{
+        $pref = $postData['pref'];
+    }
+
+    // 市区町村設定
+    $ary = explode(",",$postData["multCity"]);
+    // 市区町村が複数選択されていない場合
+    if (count($ary) <= 1 ){
+        // 空白じゃない場合
+        if ( !empty($ary[0]) ) {
+            if ($ary[0] != $postData["city"]) {
+                $postData["city"] = $ary[0];
+            }
+            $postData["multCity"] = "";
+        }else{
+            // 市区町村が複数選択されている場合(自画面内POSTバック)
+            $aryC = explode(",",$postData["city"]);
+            if ( count($aryC) > 1 ){
+                $postData["multCity"] = $postData["city"];
+                $postData["city"] = "";
+            }
+        }
+    // 市区町村が複数選択されている場合
+    }else{
+        $postData["city"] = "";
+    }
+
+	/* ━━━━━━━━━━━━━━━━━━━━━
+     * 最近閲覧した求人取得処理
+     * ━━━━━━━━━━━━━━━━━━━━ */
+	$recent_jobs = array();	//結果用配列
+	if(isset($_COOKIE['recent_jobid']) && is_array($_COOKIE['recent_jobid'])){
+		$recent_jobs = get_List_Recent_MySQL_stmg($_COOKIE['recent_jobid']);
+	}
+
+
+  
+  
+ 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+	/* ━━━━━━━━━━━━━━━━━━━━━
+     * titleタグ設定
+     * ━━━━━━━━━━━━━━━━━━━━ */
+     // エリア
+	 /* Old version title
+     if ( isset($_GET['c']) ) {
+       $titleArea = $_GET['c'] . 'の';
+     }
+     else if ( isset($_GET['p']) ) {
+       $AreaArray = get_opAreaList_stmg();
+       $titleArea = $AreaArray[$_GET['p']] . 'の';
+     }
+	*/
+	//New version title
+	if ( isset($_GET['p']) ) {
+		$AreaArray = get_opAreaList_stmg();
+		$titleArea = $AreaArray[$_GET['p']] . 'の';
+	}
+	if ( isset($_GET['c']) ) {
+		$AreaArray = get_opAreaList_stmg();
+		$titleArea = $AreaArray[$_GET['p']] .$_GET['c'] . 'の';
+	}
+	
+     // 資格一覧
+    $titleLicense = '';
+    $LicenseArray = get_opLicenseList_stmg();
+	//var_dump($LicenseArray);
+    $breakFlag = false;
+    foreach( $LicenseArray as $key => $data ) {
+      foreach ( $_POST['list-license'] as $tmp ) {
+        if ( $key == $tmp ) {
+          $titleLicense = $data . 'の';
+          $breakFlag = true;
+          break;
+        }
+      }
+      if ( $breakFlag ) {
+        break;
+      }
+    }
+
+	if($titleArea=='の'&&$titleLicense==''){
+		$newTitleTag ='介護' . $titleArea . $titleLicense . '求人検索｜介護の求人あるある｜セントスタッフ';
+	}
+	else{
+		$newTitleTag = $titleArea . $titleLicense . '求人｜介護の求人あるある｜セントスタッフ';
+	}
+
+	/* ━━━━━━━━━━━━━━━━━━━━━
+     * descriptionタグ設定
+     * ━━━━━━━━━━━━━━━━━━━━ */
+     // 資格一覧
+    $titleLicense = '';
+    $LicenseArray = get_opLicenseList_stmg();
+	//var_dump($LicenseArray);
+    $breakFlag = false;
+    foreach( $LicenseArray as $key => $data ) {
+      foreach ( $_POST['list-license'] as $tmp ) {
+        if ( $key == $tmp ) {
+          ///$titleLicense = $data . '歓迎！';
+		  $titleLicense = $data;
+          $breakFlag = true;
+          break;
+        }
+      }
+      if ( $breakFlag ) {
+        break;
+      }
+    }
+
+     // 施設一覧
+    $titleFacility = '';
+    $FacilityArray = get_opFacilityList_stmg();
+    $breakFlag = false;
+    foreach( $FacilityArray as $key => $data ) {
+      foreach ( $_POST['list-facility'] as $tmp ) {
+        if ( $key == $tmp ) {
+          $titleFacility = $data . 'で';
+          $breakFlag = true;
+          break;
+        }
+      }
+      if ( $breakFlag ) {
+        break;
+      }
+    }
+
+     // 働き方一覧
+    $titleEmployment = '';
+    $EmploymentArray = get_employmentTypeList_stmg();
+    $breakFlag = false;
+    foreach( $EmploymentArray as $key => $data ) {
+      foreach ( $_POST['list-hiringType'] as $tmp ) {
+        if ( $key == $tmp ) {
+          $titleEmployment = $data . 'の';
+          $breakFlag = true;
+          break;
+        }
+      }
+      if ( $breakFlag ) {
+        break;
+      }
+    }
+
+     // 希望条件一覧
+    $titleConditions = '';
+    $ConditionsArray = get_opwkConditionsList_stmg();
+    $conditionCounter = 0;
+    foreach( $ConditionsArray as $key => $data ) {
+      foreach ( $_POST['list-wkConditions'] as $tmp ) {
+        if ( $key == $tmp ) {
+          if ( $conditionCounter > 0 ) {
+            $titleConditions .= '・';
+          }
+          $titleConditions .= $data;
+          $conditionCounter++;
+          break;
+        }
+      }
+      if ( $conditionCounter >= 3 ) {
+        break;
+      }
+    }
+    if ( $conditionCounter > 0 ) {
+      $titleConditions .= '等、';
+    }
+	//echo $titleFacility;
+	//echo $titleEmployment;
+	echo $titleLicense;
+	if($titleArea=='の'&&$titleFacility==''&&$titleEmployment==''){
+		$newDescriptionTag ='介護' . $titleArea . $titleFacility . $titleEmployment . '求人を探すなら介護求人あるある。' . $titleLicense . '簡単検索で' . $titleConditions . '希望通りの求人が見つかります。求人情報を毎日更新！すべてのサービスが完全無料で受けられます。';
+	}else{
+	  
+
+
+		///$newDescriptionTag = $titleArea . $titleFacility . $titleLicense. $titleEmployment . '求人を探すなら介護求人あるある。'  . '簡単検索で' . $titleConditions . '希望通りの求人が見つかります。求人情報を毎日更新！すべてのサービスが完全無料で受けられます。';
+		$newDescriptionTag = $titleArea . $titleFacility . $titleLicense. $titleEmployment . '求人を探すなら介護求人あるある。'  . '簡単検索で' . $titleConditions . '希望通りの求人が見つかります。求人情報を毎日更新！すべてのサービスが完全無料で受けられます。';
+
+	
+	}
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+
+
+    //バナー取得
+    $_POST["list-pref"]=$list_pref;
+    $_POST["list-pref2"]=$list_pref2;
+	///echo $_POST["list-pref"];
+	//echo 'a'.$_POST["list-pref2"];
+    $bnr = get_List_Sub_Bnr($_POST);
+
+//print_r($bnr);
+
+
+?>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="ja">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="Content-Language" content="ja">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<? 
+$dir=$_SERVER['SERVER_NAME'] . dirname($_SERVER['PHP_SELF']);
+$dir=isset($_SERVER['HTTPS']) ? 'https://'.$dir :  'http://'.$dir; 
+?>
+<base href=<? echo $dir.'/'; ?>>
+<!--
+<title><? //echo $newTitleTag; ?></title>
+-->
+<!--
+<title>介護の求人｜介護の求人あるある｜セントスタッフ</title>
+-->
+<?php
+$title_='';
+if($newTitleTag!=NULL)
+{
+	$title_=$newTitleTag;
+}
+else{
+	$title_='介護の求人検索｜介護の求人あるある｜セントスタッフ';
+}
+?>
+<title><?php echo $title_;?></title>	
+<meta name="viewport" content="width=device-width">
+<meta name="keywords" content="<?=_keyword_default_stmg?>">
+<meta name="description" content="<? echo $newDescriptionTag; ?>">
+
+
+<?php
+if($_SERVER["REMOTE_ADDR"]=="183.77.248.155") {
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+}
+
+
+
+
+?>
+
+<link rel="shortcut icon" href="<?php echo $PATH; ?>common/image/favicon.ico">
+<link rev="made" href="mailto:">
+<link rel="stylesheet" href="<?php echo $PATH; ?>common/css/reset.css" media="all">
+<link rel="stylesheet" href="<?php echo $PATH; ?>common/css/common.css" media="all">
+<link rel="stylesheet" href="<?php echo $PATH; ?>common/css/kaigo.css" media="all">
+<link rel="stylesheet" href="<?php echo $PATH; ?>common/css/search.css" media="all">
+<link rel="stylesheet" href="<?php echo $PATH; ?>common/css/banner.css" media="all">
+<link rel="stylesheet" href="<?php echo $PATH; ?>common/css/jquery.sidr.dark.css" media="all">
+<script type="text/javascript" src="<?php echo $PATH; ?>common/js/jquery.min.js" charset="UTF-8"></script>
+<script type="text/javascript" src="<?php echo $PATH; ?>common/slick/slick.min.js"></script>
+<script type="text/javascript" src="<?php echo $PATH; ?>common/js/jquery.smoothScroll.js"></script>
+<script type="text/javascript" src="<?php echo $PATH; ?>common/js/smartRollover.js"></script>
+<script type="text/javascript" src="<?php echo $PATH; ?>/common/js/jquery.customSelect.min.js"></script>
+<script type="text/javascript" src="<?php echo $PATH; ?>search/js/common.js?d=<?=date('YmdHis');?>"></script>
+<script type="text/javascript" src="<?php echo $PATH; ?>search/js/jquery.custom.js?d=<?=date('YmdHis');?>"></script>
+<script type="text/javascript" src="<?php echo $PATH; ?>search/js/jquery.bxslider.min.js"></script>
+
+
+
+<style type="text/css">
+@media only screen and (min-width: 480px) {
+.sys-bnrs {
+	text-align:center;
+	margin-bottom:2%;
+}
+.sys-bnrs a.bnr1,.sys-bnrs a.bnr2{
+	float:none;
+}
+.sys-bnrs  img{
+	display: inline-block;
+    margin-left: auto;
+    margin-right: auto;
+	width:300px;
+}
+.sys-bnrs-text {
+    margin: 0;
+}
+}
+.sys-bnrs {
+	text-align:center;
+	margin-bottom:2%;
+}
+.sys-bnrs a.bnr1,.sys-bnrs a.bnr2{
+	float:none;
+}
+.sys-bnrs  img{
+	display: inline-block;
+    margin-left: auto;
+    margin-right: auto;
+	width:48%;
+}
+</style>
+
+<?php
+    $include_path ="/home/st_st-navi/htdocs/staging/www.kaigo-aruaru.com";
+	$include_path="..";
+?>
+
+
+</head>
+<body id="top">
+<? include($include_path."/common/inc/sidebtn_stmg.html") ?>
+<? include($include_path."/common/inc/header01_stmg.html") ?>
+<? include($include_path."/common/inc/header02.html") ?>
+
+<!-- sp_menu -->
+<? include($include_path."/common/inc/spmenu_stmg.html") ?>
+<? include($include_path."/common/inc/navi.html") ?>
+
+
+<div id="mainimg">
+<!-- <div class="con"><img src="../img/mainimg.png" width="960" height="422" alt=""/></div> -->
+</div>
+
+<div id="mainimg_sp">
+<img src="../img/header_kaigo.png" width="100%" alt="">
+</div>
+
+<? include($include_path."/common/inc/tel_sp.html") ?>
+
+
+<div id="mainCont">
+<form action="index.html" method="post" name="frm" id="frm">
+  
+  <input type="hidden" id="view_cnt" name="view_cnt"  value="">
+  
+  
+  
+<!-- ページID -->
+<input type="hidden" name="pageId"  value="<?php echo _pageId_list_stmg; ?>">
+<!-- ページ番号 -->
+<input type="hidden" name="pageNo"  value="<?php echo $page ?>">
+<!-- 新着イチオシフラグ -->
+<input type="hidden" name="newflg"  value="<?php echo $postData["newflg"]; ?>">
+<!-- 地域 -->
+<input type="hidden" name="areaGet"  value="<?php echo $postData["areaGet"]; ?>">
+<!-- 市区町村 -->
+<input type="hidden" name="cityGet"  value="<?php echo $postData["cityGet"]; ?>">
+<!-- 雇用形態 -->
+<input type="hidden" name="emptypeGet"  value="<?php echo $postData["emptypeGet"]; ?>">
+<!-- 職種 -->
+<input type="hidden" name="jobtypeGet"  value="<?php echo $postData["jobtypeGet"]; ?>">
+<!-- 施設形態 -->
+<input type="hidden" name="facilityGet"  value="<?php echo $postData["facilityGet"]; ?>">
+
+<div class="search_conditions">
+<span>検索条件</span>
+<div class="results clearfix">
+<table>
+<tr>
+<th>エリア：</th>
+<td>
+<select name="list-pref" id="list-pref">
+<option value="">（エリア）</option>
+<option label="北海道" value="Option.P_Hokkaido" <?=(_mcid_hokkaido==$postData['pref'])?"selected":""?>>北海道</option>
+<option label="青森県" value="Option.P_Aomori" <?=(_mcid_aomori==$postData['pref'])?"selected":""?>>青森県</option>
+<option label="岩手県" value="Option.P_Iwate" <?=(_mcid_iwate==$postData['pref'])?"selected":""?>>岩手県</option>
+<option label="宮城県" value="Option.P_Miyagi" <?=(_mcid_miyagi==$postData['pref'])?"selected":""?>>宮城県</option>
+<option label="秋田県" value="Option.P_Akita" <?=(_mcid_akita==$postData['pref'])?"selected":""?>>秋田県</option>
+<option label="山形県" value="Option.P_Yamagata" <?=(_mcid_yamagata==$postData['pref'])?"selected":""?>>山形県</option>
+<option label="福島県" value="Option.P_Fukushima" <?=(_mcid_fukushima==$postData['pref'])?"selected":""?>>福島県</option>
+<option label="茨城県" value="Option.P_Ibaraki" <?=(_mcid_ibaraki==$postData['pref'])?"selected":""?>>茨城県</option>
+<option label="栃木県" value="Option.P_Tochigi" <?=(_mcid_tochigi==$postData['pref'])?"selected":""?>>栃木県</option>
+<option label="群馬県" value="Option.P_Gunma" <?=(_mcid_gunma==$postData['pref'])?"selected":""?>>群馬県</option>
+<option label="埼玉県" value="Option.P_Saitama" <?=(_mcid_saitama==$postData['pref'])?"selected":""?>>埼玉県</option>
+<option label="千葉県" value="Option.P_Chiba" <?=(_mcid_chiba==$postData['pref'])?"selected":""?>>千葉県</option>
+<option label="東京都" value="Option.P_Tokyo" <?=(_mcid_tokyo==$postData['pref'])?"selected":""?>>東京都</option>
+<option label="神奈川県" value="Option.P_Kanagawa" <?=(_mcid_kanagawa==$postData['pref'])?"selected":""?>>神奈川県</option>
+<option label="新潟県" value="Option.P_Niigata" <?=(_mcid_niigata==$postData['pref'])?"selected":""?>>新潟県</option>
+<option label="富山県" value="Option.P_Toyama" <?=(_mcid_toyama==$postData['pref'])?"selected":""?>>富山県</option>
+<option label="石川県" value="Option.P_Ishikawa" <?=(_mcid_ishikawa==$postData['pref'])?"selected":""?>>石川県</option>
+<option label="福井県" value="Option.P_Fukui" <?=(_mcid_fukui==$postData['pref'])?"selected":""?>>福井県</option>
+<option label="山梨県" value="Option.P_Yamanashi" <?=(_mcid_yamanashi==$postData['pref'])?"selected":""?>>山梨県</option>
+<option label="長野県" value="Option.P_Nagano" <?=(_mcid_nagano==$postData['pref'])?"selected":""?>>長野県</option>
+<option label="岐阜県" value="Option.P_Gifu" <?=(_mcid_gifu==$postData['pref'])?"selected":""?>>岐阜県</option>
+<option label="静岡県" value="Option.P_Shizuoka" <?=(_mcid_shizuoka==$postData['pref'])?"selected":""?>>静岡県</option>
+<option label="愛知県" value="Option.P_Aichi" <?=(_mcid_aichi==$postData['pref'])?"selected":""?>>愛知県</option>
+<option label="三重県" value="Option.P_Mie" <?=(_mcid_mie==$postData['pref'])?"selected":""?>>三重県</option>
+<option label="滋賀県" value="Option.P_Shiga" <?=(_mcid_shiga==$postData['pref'])?"selected":""?>>滋賀県</option>
+<option label="京都府" value="Option.P_Kyoto" <?=(_mcid_kyoto==$postData['pref'])?"selected":""?>>京都府</option>
+<option label="大阪府" value="Option.P_Osaka" <?=(_mcid_osaka==$postData['pref'])?"selected":""?>>大阪府</option>
+<option label="兵庫県" value="Option.P_Hyogo" <?=(_mcid_hyogo==$postData['pref'])?"selected":""?>>兵庫県</option>
+<option label="奈良県" value="Option.P_Nara" <?=(_mcid_nara==$postData['pref'])?"selected":""?>>奈良県</option>
+<option label="和歌山県" value="Option.P_Wakayama" <?=(_mcid_wakayama==$postData['pref'])?"selected":""?>>和歌山県</option>
+<option label="鳥取県" value="Option.P_Tottori" <?=(_mcid_tottori==$postData['pref'])?"selected":""?>>鳥取県</option>
+<option label="島根県" value="Option.P_Shimane" <?=(_mcid_shimane==$postData['pref'])?"selected":""?>>島根県</option>
+<option label="岡山県" value="Option.P_Okayama" <?=(_mcid_okayama==$postData['pref'])?"selected":""?>>岡山県</option>
+<option label="広島県" value="Option.P_Hiroshima" <?=(_mcid_hiroshima==$postData['pref'])?"selected":""?>>広島県</option>
+<option label="山口県" value="Option.P_Yamaguchi" <?=(_mcid_yamaguchi==$postData['pref'])?"selected":""?>>山口県</option>
+<option label="徳島県" value="Option.P_Tokushima" <?=(_mcid_tokushima==$postData['pref'])?"selected":""?>>徳島県</option>
+<option label="香川県" value="Option.P_Kagawa" <?=(_mcid_kagawa==$postData['pref'])?"selected":""?>>香川県</option>
+<option label="愛媛県" value="Option.P_Ehime" <?=(_mcid_ehime==$postData['pref'])?"selected":""?>>愛媛県</option>
+<option label="高知県" value="Option.P_Kochi" <?=(_mcid_kochi==$postData['pref'])?"selected":""?>>高知県</option>
+<option label="福岡県" value="Option.P_Fukuoka" <?=(_mcid_fukuoka==$postData['pref'])?"selected":""?>>福岡県</option>
+<option label="佐賀県" value="Option.P_Saga" <?=(_mcid_saga==$postData['pref'])?"selected":""?>>佐賀県</option>
+<option label="長崎県" value="Option.P_Nagasaki" <?=(_mcid_nagasaki==$postData['pref'])?"selected":""?>>長崎県</option>
+<option label="熊本県" value="Option.P_Kumamoto" <?=(_mcid_kumamoto==$postData['pref'])?"selected":""?>>熊本県</option>
+<option label="大分県" value="Option.P_Oita" <?=(_mcid_oita==$postData['pref'])?"selected":""?>>大分県</option>
+<option label="宮崎県" value="Option.P_Miyazaki" <?=(_mcid_miyazaki==$postData['pref'])?"selected":""?>>宮崎県</option>
+<option label="鹿児島県" value="Option.P_Kagoshima" <?=(_mcid_kagoshima==$postData['pref'])?"selected":""?>>鹿児島県</option>
+<option label="沖縄県" value="Option.P_Okinawa" <?=(_mcid_okinawa==$postData['pref'])?"selected":""?>>沖縄県</option>
+</select>
+<select name="list-city" id="list-city"><option value="">選択してください</option></select>
+<!-- <a href="#" onclick="onAction('multicity.php',''); return false;" id="list-multiCity" style="visibility: hidden;">複数市区町村選択</a> -->
+</td>
+</tr>
+
+<tr>
+<th>沿線：</th>
+<td>
+<select name="list-pref2" id="list-pref2">
+<option value="">（沿線）</option>
+<option label="北海道" value="Option.P_Hokkaido" <?=(_mcid_hokkaido==$postData['pref2'])?"selected":""?>>北海道</option>
+<option label="青森県" value="Option.P_Aomori" <?=(_mcid_aomori==$postData['pref2'])?"selected":""?>>青森県</option>
+<option label="岩手県" value="Option.P_Iwate" <?=(_mcid_iwate==$postData['pref2'])?"selected":""?>>岩手県</option>
+<option label="宮城県" value="Option.P_Miyagi" <?=(_mcid_miyagi==$postData['pref2'])?"selected":""?>>宮城県</option>
+<option label="秋田県" value="Option.P_Akita" <?=(_mcid_akita==$postData['pref2'])?"selected":""?>>秋田県</option>
+<option label="山形県" value="Option.P_Yamagata" <?=(_mcid_yamagata==$postData['pref2'])?"selected":""?>>山形県</option>
+<option label="福島県" value="Option.P_Fukushima" <?=(_mcid_fukushima==$postData['pref2'])?"selected":""?>>福島県</option>
+<option label="茨城県" value="Option.P_Ibaraki" <?=(_mcid_ibaraki==$postData['pref2'])?"selected":""?>>茨城県</option>
+<option label="栃木県" value="Option.P_Tochigi" <?=(_mcid_tochigi==$postData['pref2'])?"selected":""?>>栃木県</option>
+<option label="群馬県" value="Option.P_Gunma" <?=(_mcid_gunma==$postData['pref2'])?"selected":""?>>群馬県</option>
+<option label="埼玉県" value="Option.P_Saitama" <?=(_mcid_saitama==$postData['pref2'])?"selected":""?>>埼玉県</option>
+<option label="千葉県" value="Option.P_Chiba" <?=(_mcid_chiba==$postData['pref2'])?"selected":""?>>千葉県</option>
+<option label="東京都" value="Option.P_Tokyo" <?=(_mcid_tokyo==$postData['pref2'])?"selected":""?>>東京都</option>
+<option label="神奈川県" value="Option.P_Kanagawa" <?=(_mcid_kanagawa==$postData['pref2'])?"selected":""?>>神奈川県</option>
+<option label="新潟県" value="Option.P_Niigata" <?=(_mcid_niigata==$postData['pref2'])?"selected":""?>>新潟県</option>
+<option label="富山県" value="Option.P_Toyama" <?=(_mcid_toyama==$postData['pref2'])?"selected":""?>>富山県</option>
+<option label="石川県" value="Option.P_Ishikawa" <?=(_mcid_ishikawa==$postData['pref2'])?"selected":""?>>石川県</option>
+<option label="福井県" value="Option.P_Fukui" <?=(_mcid_fukui==$postData['pref2'])?"selected":""?>>福井県</option>
+<option label="山梨県" value="Option.P_Yamanashi" <?=(_mcid_yamanashi==$postData['pref2'])?"selected":""?>>山梨県</option>
+<option label="長野県" value="Option.P_Nagano" <?=(_mcid_nagano==$postData['pref2'])?"selected":""?>>長野県</option>
+<option label="岐阜県" value="Option.P_Gifu" <?=(_mcid_gifu==$postData['pref2'])?"selected":""?>>岐阜県</option>
+<option label="静岡県" value="Option.P_Shizuoka" <?=(_mcid_shizuoka==$postData['pref2'])?"selected":""?>>静岡県</option>
+<option label="愛知県" value="Option.P_Aichi" <?=(_mcid_aichi==$postData['pref2'])?"selected":""?>>愛知県</option>
+<option label="三重県" value="Option.P_Mie" <?=(_mcid_mie==$postData['pref2'])?"selected":""?>>三重県</option>
+<option label="滋賀県" value="Option.P_Shiga" <?=(_mcid_shiga==$postData['pref2'])?"selected":""?>>滋賀県</option>
+<option label="京都府" value="Option.P_Kyoto" <?=(_mcid_kyoto==$postData['pref2'])?"selected":""?>>京都府</option>
+<option label="大阪府" value="Option.P_Osaka" <?=(_mcid_osaka==$postData['pref2'])?"selected":""?>>大阪府</option>
+<option label="兵庫県" value="Option.P_Hyogo" <?=(_mcid_hyogo==$postData['pref2'])?"selected":""?>>兵庫県</option>
+<option label="奈良県" value="Option.P_Nara" <?=(_mcid_nara==$postData['pref2'])?"selected":""?>>奈良県</option>
+<option label="和歌山県" value="Option.P_Wakayama" <?=(_mcid_wakayama==$postData['pref2'])?"selected":""?>>和歌山県</option>
+<option label="鳥取県" value="Option.P_Tottori" <?=(_mcid_tottori==$postData['pref2'])?"selected":""?>>鳥取県</option>
+<option label="島根県" value="Option.P_Shimane" <?=(_mcid_shimane==$postData['pref2'])?"selected":""?>>島根県</option>
+<option label="岡山県" value="Option.P_Okayama" <?=(_mcid_okayama==$postData['pref2'])?"selected":""?>>岡山県</option>
+<option label="広島県" value="Option.P_Hiroshima" <?=(_mcid_hiroshima==$postData['pref2'])?"selected":""?>>広島県</option>
+<option label="山口県" value="Option.P_Yamaguchi" <?=(_mcid_yamaguchi==$postData['pref2'])?"selected":""?>>山口県</option>
+<option label="徳島県" value="Option.P_Tokushima" <?=(_mcid_tokushima==$postData['pref2'])?"selected":""?>>徳島県</option>
+<option label="香川県" value="Option.P_Kagawa" <?=(_mcid_kagawa==$postData['pref2'])?"selected":""?>>香川県</option>
+<option label="愛媛県" value="Option.P_Ehime" <?=(_mcid_ehime==$postData['pref2'])?"selected":""?>>愛媛県</option>
+<option label="高知県" value="Option.P_Kochi" <?=(_mcid_kochi==$postData['pref2'])?"selected":""?>>高知県</option>
+<option label="福岡県" value="Option.P_Fukuoka" <?=(_mcid_fukuoka==$postData['pref2'])?"selected":""?>>福岡県</option>
+<option label="佐賀県" value="Option.P_Saga" <?=(_mcid_saga==$postData['pref2'])?"selected":""?>>佐賀県</option>
+<option label="長崎県" value="Option.P_Nagasaki" <?=(_mcid_nagasaki==$postData['pref2'])?"selected":""?>>長崎県</option>
+<option label="熊本県" value="Option.P_Kumamoto" <?=(_mcid_kumamoto==$postData['pref2'])?"selected":""?>>熊本県</option>
+<option label="大分県" value="Option.P_Oita" <?=(_mcid_oita==$postData['pref2'])?"selected":""?>>大分県</option>
+<option label="宮崎県" value="Option.P_Miyazaki" <?=(_mcid_miyazaki==$postData['pref2'])?"selected":""?>>宮崎県</option>
+<option label="鹿児島県" value="Option.P_Kagoshima" <?=(_mcid_kagoshima==$postData['pref2'])?"selected":""?>>鹿児島県</option>
+<option label="沖縄県" value="Option.P_Okinawa" <?=(_mcid_okinawa==$postData['pref2'])?"selected":""?>>沖縄県</option>
+</select>
+<select name="list-nearest" id="list-nearest"><option value="">選択してください</option></select>
+</td>
+</tr>
+
+<tr>
+<th>働き方：</th>
+<td>
+<label><input type="checkbox" name="list-hiringType[]" value="Option.U_000590:Option.U_000146" <?=(in_array(_mcid_temp_to_perm.','._mcid_regular_Staff,$postData['hiringType']))?"checked":""?>>正社員（紹介・紹介予定派遣）</label>
+<label><input type="checkbox" name="list-hiringType[]" value="Option.P_TemporaryStaff" <?=(in_array(_mcid_contractStaff,$postData['hiringType']))?"checked":""?>>契約社員</label>
+<label><input type="checkbox" name="list-hiringType[]" value="Option.U_000145" <?=(in_array(_mcid_temporary_staff,$postData['hiringType']))?"checked":""?>>派遣社員</label>
+<label><input type="checkbox" name="list-hiringType[]" value="Option.U_000147" <?=(in_array(_mcid_part,$postData['hiringType']))?"checked":""?>>パート・アルバイト</label>
+<label><input type="checkbox" name="list-hiringType[]" value="Option.P_Contractor" <?=(in_array(_mcid_contractor,$postData['hiringType']))?"checked":""?>>その他</label>
+</td>
+</tr>
+<tr>
+<th>キーワード：</th>
+<td><input type="text" id="keyword" name="keyword" value="<?=$postData['keyword']?>" class="search rounded" placeholder="キーワードを入力して検索"></td>
+</tr>
+</table>
+<div class="next_condition" style="height:0px;">
+<table>
+<tr>
+<th>施設形態：</th>
+<td>
+<label><input type="checkbox" name="list-facility[]" value="Option.U_000037:Option.U_000056" <?=(in_array(_mcid_nursing_home.','._mcid_facility,$postData['facility']))?"checked":""?>>特別養護老人ホーム</label>
+<label><input type="checkbox" name="list-facility[]" value="Option.U_000039:Option.U_000056" <?=(in_array(_mcid_pay_nursing_home.','._mcid_facility,$postData['facility']))?"checked":""?>>有料老人ホーム</label>
+<label><input type="checkbox" name="list-facility[]" value="Option.U_000038:Option.U_000056" <?=(in_array(_mcid_health_Facility.','._mcid_facility,$postData['facility']))?"checked":""?>>老人保健施設</label>
+<label><input type="checkbox" name="list-facility[]" value="Option.U_000042:Option.U_000056" <?=(in_array(_mcid_group_home.','._mcid_facility,$postData['facility']))?"checked":""?>>グループホーム</label>
+<label><input type="checkbox" name="list-facility[]" value="Option.U_000055:Option.U_000040:Option.U_000591" <?=(in_array(_mcid_day_service_etc.','._mcid_day_service.','._mcid_day_care_service,$postData['facility']))?"checked":""?>>デイサービス・デイケアサービス</label>
+<label><input type="checkbox" name="list-facility[]" value="Option.U_000659" <?=(in_array(_mcid_short_stay,$postData['facility']))?"checked":""?>>ショートステイ</label>
+<label><input type="checkbox" name="list-facility[]" value="Option.U_000043:Option.U_000044:Option.U_000045:Option.U_000046" <?=(in_array(_mcid_visiting_nursing_care.','._mcid_visiting_nursing.','._mcid_visiting_bathing.','._mcid_in_home,$postData['facility']))?"checked":""?>>訪問介護・看護</label>
+<!-- <label><input type="checkbox" name="list-facility[]" value="Option.U_000051:Option.U_000588:Option.U_000589" <?=(in_array(_mcid_nursery_school.','._mcid_in_hospital_care.','._mcid_in_house_care,$postData['facility']))?"checked":""?>>保育園・託児施設</label>
+<label><input type="checkbox" name="list-facility[]" value="Option.U_000052" <?=(in_array(_mcid_kindergarten,$postData['facility']))?"checked":""?>>幼稚園</label> -->
+<label><input type="checkbox" name="list-facility[]" value="Option.U_000047" <?=(in_array(_mcid_hospital,$postData['facility']))?"checked":""?>>病院</label>
+<label><input type="checkbox" name="list-facility[]" value="Option.U_000048:Option.U_000049" <?=(in_array(_mcid_clinic.','._mcid_examination,$postData['facility']))?"checked":""?>>クリニック</label>
+<label><input type="checkbox" name="list-facility[]" value="Option.U_000050" <?=(in_array(_mcid_disabled_facility,$postData['facility']))?"checked":""?>>障がい者施設・障がい児施設</label>
+<label><input type="checkbox" name="list-facility[]" value="Option.U_000054" <?=(in_array(_mcid_etc,$postData['facility']))?"checked":""?>>その他</label>
+</td>
+</tr>
+
+<tr>
+<th>資格：</th>
+<td>
+<!-- 介護 -->
+<label><input type="checkbox" name="list-license[]" value="Option.U_000116" <?=(in_array(_mcid_care_worker,$postData['license']))?"checked":""?>>介護福祉士</label>
+<label><input type="checkbox" name="list-license[]" value="Option.U_000117" <?=(in_array(_mcid_home_helper1,$postData['license']))?"checked":""?>>ホームヘルパー1級</label>
+<label><input type="checkbox" name="list-license[]" value="Option.U_000118" <?=(in_array(_mcid_home_helper2,$postData['license']))?"checked":""?>>ホームヘルパー2級</label>
+<label><input type="checkbox" name="list-license[]" value="Option.U_000594" <?=(in_array(_mcid_official_training,$postData['license']))?"checked":""?>>介護職員実務者研修</label>
+<label><input type="checkbox" name="list-license[]" value="Option.U_000593" <?=(in_array(_mcid_basic_training,$postData['license']))?"checked":""?>>介護職員基礎研修</label>
+<label><input type="checkbox" name="list-license[]" value="Option.U_000592" <?=(in_array(_mcid_initial_training,$postData['license']))?"checked":""?>>介護職員初任者研修</label>
+<!-- 保育
+<label><input type="checkbox" name="list-license[]" value="Option.U_000122" <?=(in_array(_mcid_childminder,$postData['license']))?"checked":""?>>保育士</label>
+<label><input type="checkbox" name="list-license[]" value="Option.U_000123" <?=(in_array(_mcid_kindergarten_teacher,$postData['license']))?"checked":""?>>幼稚園教諭</label> -->
+<!-- 看護
+<label><input type="checkbox" name="list-license[]" value="Option.U_000113:Option.U_000111" <?=(in_array(_mcid_public_health_nurse.','._mcid_registered_nurse,$postData['license']))?"checked":""?>>正看護師</label>
+<label><input type="checkbox" name="list-license[]" value="Option.U_000114" <?=(in_array(_mcid_assistant_nurse,$postData['license']))?"checked":""?>>准看護師</label> -->
+<!-- その他 -->
+<label><input type="checkbox" name="list-license[]" value="Option.U_000121" <?=(in_array(_mcid_nutritionist,$postData['license']))?"checked":""?>>管理栄養士・栄養士・調理師</label>
+<label><input type="checkbox" name="list-license[]" value="Option.U_000120" <?=(in_array(_mcid_therapist,$postData['license']))?"checked":""?>>理学療法士、作業療法士、言語聴覚士</label>
+<label><input type="checkbox" name="list-license[]" value="Option.U_000110" <?=(in_array(_mcid_care_managers,$postData['license']))?"checked":""?>>ケアマネジャー</label>
+<label><input type="checkbox" name="list-license[]" value="Option.U_000115:Option.U_000502" <?=(in_array(_mcid_social_worker.','._mcid_life_counselor,$postData['license']))?"checked":""?>>社会福祉士</label>
+<label><input type="checkbox" name="list-license[]" value="Option.U_000119:Option.U_000502" <?=(in_array(_mcid_social_welfare_officer.','._mcid_life_counselor,$postData['license']))?"checked":""?>>社会福祉主事</label>
+<label><input type="checkbox" name="list-license[]" value="Option.U_000124" <?=(in_array(_mcid_disqualification,$postData['license']))?"checked":""?>>無資格</label>
+<label><input type="checkbox" name="list-license[]" value="Option.U_000125" <?=(in_array(_mcid_license_etc,$postData['license']))?"checked":""?>>その他</label>
+</td>
+</tr>
+
+<tr>
+<th>希望条件：</th>
+<td>
+<!-- <label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000373" <?=(in_array(_mcid_full_five_day,$postData['wkConditions']))?"checked":""?>>完全週休2日</label> -->
+<!-- <label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000374" <?=(in_array(_mcid_five_day,$postData['wkConditions']))?"checked":""?>>週休2日</label> -->
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000375" <?=(in_array(_mcid_weekday_work,$postData['wkConditions']))?"checked":""?>>平日勤務</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000376" <?=(in_array(_mcid_night_shift,$postData['wkConditions']))?"checked":""?>>夜間専属</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000377" <?=(in_array(_mcid_day_shift,$postData['wkConditions']))?"checked":""?>>日中勤務</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000378" <?=(in_array(_mcid_inexperienced,$postData['wkConditions']))?"checked":""?>>未経験者歓迎</label>
+<!-- <label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000379" <?=(in_array(_mcid_regular_appoint,$postData['wkConditions']))?"checked":""?>>正社員登用</label> -->
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000380" <?=(in_array(_mcid_car_ok,$postData['wkConditions']))?"checked":""?>>車通勤OK</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000381" <?=(in_array(_mcid_full_time,$postData['wkConditions']))?"checked":""?>>フルタイム勤務</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000382" <?=(in_array(_mcid_experienced_only,$postData['wkConditions']))?"checked":""?>>経験者限定</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000383" <?=(in_array(_mcid_blank_ok,$postData['wkConditions']))?"checked":""?>>ブランク歓迎</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000384" <?=(in_array(_mcid_time_fixed_ok,$postData['wkConditions']))?"checked":""?>>時間固定勤務OK</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000385" <?=(in_array(_mcid_three_days_ok,$postData['wkConditions']))?"checked":""?>>週3日〜勤務OK</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000386" <?=(in_array(_mcid_dependents_ok,$postData['wkConditions']))?"checked":""?>>扶養内OK</label>
+<!-- <label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000387" <?=(in_array(_mcid_long_term,$postData['wkConditions']))?"checked":""?>>長期のお仕事</label> -->
+<!-- <label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000388" <?=(in_array(_mcid_short_term,$postData['wkConditions']))?"checked":""?>>短期のお仕事</label> -->
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000389" <?=(in_array(_mcid_station,$postData['wkConditions']))?"checked":""?>>駅から徒歩圏内</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000390" <?=(in_array(_mcid_our_ompany_staff,$postData['wkConditions']))?"checked":""?>>当社スタッフ活躍中!</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000391" <?=(in_array(_mcid_within_one_year,$postData['wkConditions']))?"checked":""?>>開業1年以内</label>
+<!-- <label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000392" <?=(in_array(_mcid_no_overtime,$postData['wkConditions']))?"checked":""?>>残業なし</label> -->
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000393" <?=(in_array(_mcid_Various_insurance,$postData['wkConditions']))?"checked":""?>>各種保険完備</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_000394" <?=(in_array(_mcid_no_license_ok,$postData['wkConditions']))?"checked":""?>>資格なくてもOK</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_001683" <?=(in_array(_mcid_opening,$postData['wkConditions']))?"checked":""?>>オープニング</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_001684" <?=(in_array(_mcid_three_months_ok,$postData['wkConditions']))?"checked":""?>>3ヵ月先からでもOK</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_001685" <?=(in_array(_mcid_shorter_working,$postData['wkConditions']))?"checked":""?>>短時間勤務</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_001686" <?=(in_array(_mcid_holiday_110_days,$postData['wkConditions']))?"checked":""?>>年休110日以上</label>
+<!-- <label><input type="checkbox" name="list-wkConditions[]" value="Option.U_001687" <?=(in_array(_mcid_childcare,$postData['wkConditions']))?"checked":""?>>保育補助</label> -->
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_001688" <?=(in_array(_mcid_small_scale,$postData['wkConditions']))?"checked":""?>>小規模</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_001689" <?=(in_array(_mcid_has_dormitory,$postData['wkConditions']))?"checked":""?>>社宅・寮あり</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_001690" <?=(in_array(_mcid_senior,$postData['wkConditions']))?"checked":""?>>シニア活躍中</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_001691" <?=(in_array(_mcid_mom,$postData['wkConditions']))?"checked":""?>>ママさん活躍中</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_001692" <?=(in_array(_mcid_manager,$postData['wkConditions']))?"checked":""?>>管理職候補</label>
+<label><input type="checkbox" name="list-wkConditions[]" value="Option.U_001693" <?=(in_array(_mcid_weekend_holiday,$postData['wkConditions']))?"checked":""?>>土日休み</label>
+<!-- <label><input type="checkbox" name="list-wkConditions[]" value="Option.U_001694" <?=(in_array(_mcid_autumn_employment,$postData['wkConditions']))?"checked":""?>>秋採用</label> -->
+<!-- <label><input type="checkbox" name="list-wkConditions[]" value="Option.U_001695" <?=(in_array(_mcid_april_start,$postData['wkConditions']))?"checked":""?>>4月スタート</label> -->
+</td>
+</tr>
+
+</table>
+</div>
+<a href="javascript:void(0)" id="next_condition">▼こだわり条件を追加する</a>
+<a href="#" onclick="onGetActionInit('index.html',''); return false;">
+<input type="image" src="img/btn_change_condition.png">
+</a>
+</div>
+</div>
+</form>
+
+<?php /********画像*********/ ?>
+<?php if($bnr){ $n=1; ?>
+
+
+
+    <?php foreach($bnr as $key => $val){ if($val["view_type"] == 1 or $val["view_type"] == 3){ ?>
+
+<?php
+
+
+  $b_flg = false;
+
+  if($_POST['list-pref']!=="" && $val["list_pref"]!=="") {
+
+    if($_POST['list-pref']!=="" && $_POST['list-city']!=="") {
+      if($val['list_city'] == "") {
+        $b_flg = true;
+      } else {
+        if($_POST['list-city'] == $val['list_city']) {
+          $b_flg = true;
+        }
+      }
+    } else if($_POST['list-pref']!=="" && $_POST['list-city']=="") {
+      if($val['list_city'] == "") {
+        $b_flg = true;
+      }
+    }
+
+  } else if($_POST['list-pref2']!=="" && $val["list_pref2"]!=="") {
+
+    if($_POST['list-pref2']!=="" && $_POST['list-nearest']!=="") {
+      if($val['list_nearest'] == "") {
+        $b_flg = true;
+      } else {
+        $post_array = explode(',',$_POST['list-nearest']);
+        $post_cnt=count($post_array);
+        for($t=0;$t<$post_cnt;$t++) {
+          if(strpos($val['list_nearest'],$post_array[$t])!==false) {
+            $b_flg = true;
+            break;
+          }
+        }
+      }
+    } else if($_POST['list-pref2']!=="" && $_POST['list-nearest']=="") {
+      if($val['list_nearest'] == "") {
+        $b_flg = true;
+      }
+    }
+
+  }
+
+
+
+
+    if($b_flg == true) {
+?>
+
+
+    <?php if( $n == 1){ ?>
+    <div class="sys-bnrs clearfix">
+    <?php } ?>
+
+
+
+  <a href="<?php echo $val["link_url"]; ?>" target="_blank" class="bnr<?php echo $n ; ?>">
+    	<?php if($val["view_type"] != 2){ ?>
+		<img src="<?php echo BNR_URL ; ?>/upload_img/ad/<?php echo $val["img1"]; ?>" width="100%" alt="<?php echo $val["title"]; ?>" class="jquery-hover"/>
+        <?php } ?>
+
+	</a>
+
+
+
+    <?php $n++; if($n ==3){ echo '</div>'; $n=1; } ?>
+
+
+<?php }  ?>
+
+
+
+
+    <?php } } ?>
+
+
+
+
+<?php if($n != 1){ ?>
+</div>
+<?php } ?>
+<?php } ?>
+<?php /********画像*********/ ?>
+
+<div class="results">
+<!-- ━ ErrorMessage Str ━ -->
+<!-- 内部エラーがある場合は、メッセージを表示し以降の処理をさせない。 -->
+<?php if ( !empty($err) ) { ?>
+<div class="error"><?php echo $err ?></div>
+<?php
+    return;
+}
+?>
+<!-- ━ ErrorMessage End ━ -->
+
+
+<div class="no clearfix">
+<p>検索結果数：<?php echo htmlspecialchars($RecCnt);?> 件</p>
+
+  
+  <?php include 'inc/page.php';?>
+
+
+<?php
+
+
+
+?>
+<?php
+
+
+  /*
+  if($_SERVER["REQUEST_METHOD"] != "POST"){
+echo "G".$_GET['list-dispCount'];
+  } else {
+echo "P".$_POST['list-dispCount'];    
+print_r($_POST);
+  }
+   * 
+   */
+?>
+
+
+
+</div><!--/no-->
+<div class="show clearfix">
+<!-- <a href="#" class="normal">通常表示</a>
+<a href="#" class="simple">シンプル表示</a> -->
+
+<?php
+  if($RecCnt==="0") {
+    echo '<div style="float:left;padding-top:4px;padding-bottom:4px;">';
+    echo 'ご希望の条件に該当するお仕事が見つかりませんでした。<br />条件を変えて、再度お探し下さい。';
+    echo '</div>';
+  }
+?>
+
+
+<div class="pull">
+  表示件数:
+  
+<select name="list-dispCount" onchange="onPostActionWithParam('?mode=dispCount','',$(this).attr('name'),$(this).val()); return false;" class="styled">
+<?php echo get_HtmlMakeSelOption_stmg(array(explode(",", _disp_listCount_stmg),explode(",", _disp_listCount_stmg)), $paging['limit']); ?>
+</select>
+
+
+</div>
+</div><!--/show-->
+
+<div class="all">
+<form name="frm2" action="https://www.st-navi.jp<? echo _test_folder ?>/form.html" method="get">
+<a href="javascript:void(0);" id="btnRequest">まとめてWEBから応募する（24時間受付）※最大5件まで</a>
+<script>
+$("#btnRequest").on("click",function(){
+	var elm = $(this);
+	var inputhidden = "";
+	$.each($("input[name='siryo_flag[]']:checked"),function(){
+		inputhidden += '<input type="hidden" name="jobid[]" value="'+$(this).val()+'">';
+	});
+	$("form[name='frm2']").append(inputhidden);
+	document.frm2.submit();
+});
+</script>
+
+
+
+
+</form>
+</div>
+
+<!-- システムバナーエリア -->
+<style type="text/css">
+#loading{
+	position:fixed;
+	left:50%;
+	top:20%;
+}
+</style>
+
+
+<?php /********テキスト*********/ ?>
+<?php if($bnr){ $n=1; ?>
+<div class="sys-bnrs-text clearfix">
+    <?php foreach($bnr as $key => $val){ if($val["view_type"] == 1 or $val["view_type"] == 2){ ?>
+
+
+
+<?php
+        $b_flg = false;
+        if($_POST['list-pref']!=="" && $val["list_pref"]!=="") {
+          if($val["list_city"]==$_POST['list-city']) {
+            $b_flg = true;
+          }
+        } else if($_POST['list-pref2']!=="" && $val["list_pref2"]!=="") {
+          if($val["list_nearest"]==$_POST['list-nearest']) {
+            $b_flg = true;
+          }
+        }
+        if($b_flg == true) {
+?>
+
+
+    <p>
+	     <a href="<?php echo $val["link_url"]; ?>" target="_blank" class="bnr<?php echo $n ; ?>">
+		       <span><?php echo nl2br($val["body"]); ?></span>
+	     </a>
+    </p>
+
+<?php } ?>
+
+    <?php  } } ?>
+
+
+</div>
+<?php } ?>
+<?php /******** /テキスト*********/ ?>
+
+
+
+<!-- //システムバナーエリア -->
+
+<!-- ━ List Str ━ -->
+
+<div id="loading" style="display:none!important;position:relative!important;"><img src="img/loader.gif"></div>
+
+<div id="listData">
+</div><!--/listData-->
+<!-- ━ List End ━ -->
+
+<div class="no clearfix">
+<p>検索結果数：<?php echo htmlspecialchars($RecCnt);?> 件</p>
+<?php include 'inc/page.php';?>
+</div><!--/no-->
+<div class="show clearfix">
+<!-- <a href="#" class="normal">通常表示</a>
+<a href="#" class="simple">シンプル表示</a> -->
+
+<div class="pull">
+  表示件数:
+<select name="list-dispCount" onchange="onPostActionWithParam('?mode=dispCount','',$(this).attr('name'),$(this).val()); return false;" class="styled">
+<?php echo get_HtmlMakeSelOption_stmg(array(explode(",", _disp_listCount_stmg),explode(",", _disp_listCount_stmg)), $paging['limit']); ?>
+</select>
+
+  
+</div>
+</div><!--/show-->
+
+</div><!--/results-->
+
+<?
+$cnt_recent = count($recent_jobs[0]);
+if($cnt_recent > 0){
+?>
+<div class="recent_job clearfix">
+<span>最近閲覧した求人情報</span>
+<ul class="atcl_slider clearfix">
+<?
+for($i=0;$i<$cnt_recent;$i++){
+//リンク
+$recent_url = 'result'.$recent_jobs[0][$i]['job_id'].'.html';
+// 画像
+$img = get_imageFile_stmg( $recent_jobs[0][$i]['job_category'], $recent_jobs[0][$i], 'list', 'recent' );
+// 配列に設定
+$arr[$i]['JobImage'] = $img;
+// タイトル
+$recent_position = $recent_jobs[0][$i]['position_name'];
+$recent_position = (mb_strlen($recent_position,"utf-8") > 18)?mb_substr($recent_position,0,18,"utf-8")."...":$recent_position;
+// 本文
+$recent_body = $recent_jobs[0][$i]['text'];
+$recent_body = (mb_strlen($recent_body,"utf-8") > 20)?mb_substr($recent_body,0,20,"utf-8")."...":$recent_body;
+?>
+<li><a href="<?=htmlspecialchars($recent_url)?>" target="_blank"><div class="imgframe"><img src="<?=$img?>"></div><p class="ttl"><?=htmlspecialchars($recent_position)?></p><p class="body"><?=htmlspecialchars($recent_body)?></p></a></li>
+<?
+}
+?>
+</ul>
+</div>
+<?
+}
+?>
+
+
+<? include($include_path."/common/inc/tel_sp.html") ?>
+
+<?php /********画像*********/ ?>
+<?php if($bnr){ $n=1; ?>
+
+
+
+    <?php foreach($bnr as $key => $val){ if($val["view_type"] == 1 or $val["view_type"] == 3){ ?>
+
+<?php
+
+
+  $b_flg = false;
+
+  if($_POST['list-pref']!=="" && $val["list_pref"]!=="") {
+
+    if($_POST['list-pref']!=="" && $_POST['list-city']!=="") {
+      if($val['list_city'] == "") {
+        $b_flg = true;
+      } else {
+        if($_POST['list-city'] == $val['list_city']) {
+          $b_flg = true;
+        }
+      }
+    } else if($_POST['list-pref']!=="" && $_POST['list-city']=="") {
+      if($val['list_city'] == "") {
+        $b_flg = true;
+      }
+    }
+
+  } else if($_POST['list-pref2']!=="" && $val["list_pref2"]!=="") {
+
+    if($_POST['list-pref2']!=="" && $_POST['list-nearest']!=="") {
+      if($val['list_nearest'] == "") {
+        $b_flg = true;
+      } else {
+        $post_array = explode(',',$_POST['list-nearest']);
+        $post_cnt=count($post_array);
+        for($t=0;$t<$post_cnt;$t++) {
+          if(strpos($val['list_nearest'],$post_array[$t])!==false) {
+            $b_flg = true;
+            break;
+          }
+        }
+      }
+    } else if($_POST['list-pref2']!=="" && $_POST['list-nearest']=="") {
+      if($val['list_nearest'] == "") {
+        $b_flg = true;
+      }
+    }
+
+  }
+
+
+
+
+    if($b_flg == true) {
+?>
+
+
+    <?php if( $n == 1){ ?>
+    <div class="sys-bnrs clearfix">
+    <?php } ?>
+
+
+
+  <a href="<?php echo $val["link_url"]; ?>" target="_blank" class="bnr<?php echo $n ; ?>">
+    	<?php if($val["view_type"] != 2){ ?>
+		<img src="<?php echo BNR_URL ; ?>/upload_img/ad/<?php echo $val["img1"]; ?>" width="100%" alt="<?php echo $val["title"]; ?>" class="jquery-hover"/>
+        <?php } ?>
+
+	</a>
+
+
+
+    <?php $n++; if($n ==3){ echo '</div>'; $n=1; } ?>
+
+
+<?php }  ?>
+
+
+
+
+    <?php } } ?>
+
+
+
+
+<?php if($n != 1){ ?>
+</div>
+<?php } ?>
+<?php } ?>
+<?php /********画像*********/ ?>
+</div><!--/#mainCont-->
+
+
+<? include($include_path."/common/inc/footnavi.html") ?>
+<? include($include_path."/common/inc/footer.html") ?>
+<? include($include_path."/common/inc/pagetop_sidr.html") ?>
+
+<? include($include_path."/common/inc/ads.html") ?>
+
+
+
+
+
+
+<script type="text/javascript" src="<?php echo $PATH; ?>search/js/search.js"></script>
+
+
+
+<script type="text/javascript">
+<!--
+
+  var offset = 0;
+  var limit = 20;
+  //var dispMax = <?//=$postData['dispCount']?>;
+  var dispMax = <?=$paging['limit']?>;
+  var page = <?=$paging['p_start']?>;
+  var loadFlag = 1;
+  
+  var method = '';
+  
+  $(function(){
+
+    $('select.styled').customSelect();
+
+    if($(window).width() > 479){
+      var slideNum = 4;
+      var slideWidthNum = 956;
+
+      $(".atcl_slider").bxSlider({
+        slideWidth: slideWidthNum,
+        minSlides: slideNum,
+        maxSlides: slideNum,
+        slideMargin: 0,
+        pager: false
+      });
+    }else{
+      $(".recent_job").remove();
+    }
+
+  });
+
+
+  ///$(function(){
+  $(document).ready(function(){
+    
+    //━━━━━━━━━━━━━━━
+    //都道府県コンボボックス変更時
+    //━━━━━━━━━━━━━━━
+    $("#list-pref").change(function(){
+	    var prefVal = $(this).children("option:selected").val();
+console.log(prefVal);      
+console.log('<?=$postData['city']?>');      
+	    // 市区町村コンボボックス生成
+	    $.fn.editCitySelect({
+        ctlId: 'list-city',
+        selPref:prefVal,
+        selCity: '<?=$postData['city']?>'
+	    });
+    });
+    
+    //━━━━━━━━━━━━━━━
+    //沿線コンボボックス変更時
+    //━━━━━━━━━━━━━━━
+    $("#list-pref2").change(function(){
+	     var prefVal = $(this).children("option:selected").val();	//Option.P_Tokyo
+	     // 市区町村コンボボックス生成
+	     $.fn.editLineStationsSelect({
+	         ctlId: 'list-nearest',
+	         selPref:prefVal,
+	         selNearest: '<?=$postData['nearest']?>'
+	     });
+  	 });
+
+    //open状態の高さを取得する
+    var opend_height = $(".next_condition table").css("height");
+
+    $("#next_condition").on("click",function(){
+      var $target = $(".next_condition");
+      if($target.hasClass("open")){
+        //こだわり条件を隠す
+          $target.removeClass("open");
+        $target.animate({
+          height: "0px"
+        },"normal","swing");
+        $(this).html("▼こだわり条件を追加する");
+      }else{
+        //こだわり条件を開く
+        $target.addClass("open");
+        $target.animate({
+          height: opend_height
+        },"normal","swing",function(){
+          $(this).css("height","");
+        });
+        $(this).html("▲こだわり条件を閉じる");
+      }
+    });
+
+
+    $("#list-pref").trigger('change');
+    $("#list-pref2").trigger('change');
+    $(".rec_cnt").hide();
+
+
+    loadList_stmg(dispMax);
+
+
+
+
+  });
+
+
+
+
+
+  var disp;
+  function loadList_stmg(limit) {
+
+  	var t = $(this);
+    offset = <?= intval($recStr)-1 ?>;
+    console.log(limit);
+    // ----- 実行したい処理を書く -----
+    // フォームデータを取得
+    var formdata = new FormData($('form[name=frm]').get(0));
+    formdata.append('offset',offset);
+    formdata.append('limit',limit);
+    //formdata.append('page',arg.page);
+	
+	// 読み込み
+	$.ajax({
+		//type: 'GET',
+		//url: '/staging/www.kaigo-aruaru.com/search/get_list.php'+ '?offset='+offset+'&limit='+limit+'&page='+page+'&date=' + new Date().getTime(),
+		type: 'POST',
+		url: 'get_list.php',
+    dataType:'jsonp',
+    jsonpCallback: 'callback',
+		data :formdata,
+		cache	 : false,
+    timeout: 60000,
+		contentType : false,
+		processData : false
+	})
+	.success(function(json){
+    
+    console.log(json);  
+ if(json!=null){   
+    var html = '';
+    var cnt = Object.keys(json).length;
+    //var imgary = get_imageFile_stmg( cnt );
+
+console.log("CNT:"+cnt);
+for(var i = 0; i < cnt; i++) {
+      html += '<div class="result clearfix">';
+      html += '<div class="check">';
+      html += '<input type="checkbox" name="siryo_flag[]" value="'+json[i].Id+'" id="siryocheck'+json[i].Id+'" />';
+      html += '</div><!--/check-->';
+
+      var offsetAdd = (offset % 2 == 1 ) ? 1 : 0 ;
+      var bg_color = ( (i + offsetAdd) % 2 == 0)?"bg_purple":"";
+      html += '<div class="RCon '+bg_color+'">';
+
+      var result_url = 'result'+json[i].Id+'.html';
+      html += '<a class="h3link" href="'+result_url+'" onClick="onAction(\''+result_url+'\',\'_blank\'); return false;"><h3>'+json[i].Position+'</h3></a>';
+
+      var img = [];
+      var pProcessKbn = ""; //スマホの時は"m"
+      var job_category_alias = changeJobCategoryAlias(  json[i].JobCategory.split(',') );
+  
+      // 画像ファイル設定処理
+      //var img = get_imageFile_stmg(job_category_alias,json[i], 'detail', pProcessKbn);
+      //var img = imgary[i];
+      var img =  Math.floor( Math.random() * (50 + 1 - 1) ) + 1 ;
+      
+      html += '<div class="LArea">';
+      html += '<img src="img/detail/standard_img_'+img+'.jpg" style="width:100%;"/>';
+      html += '<ul>';
+
+      if(json[i].U_10072.length > 0) {
+        var ary = json[i].U_10072.split(',');
+        html += get_HtmlMakeWorkingConditions_stmg(ary);
+      }
+
+      html += '</ul>';
+      html += '</div><!--/LArea-->';
+      html += '<div class="CArea">';
+
+      html += '<table>';
+      html += '<tr>';
+      html += '<th>募集職種</th>';
+
+
+      ary = json[i].JobCategory.split(',');
+      var str = "";
+      var str_val = "";
+
+      for(var t=0;t<ary.length;t++) {
+        switch(ary[t]) {
+          case "2": str_val = "その他";break;
+          case "4": str_val = "保育士";break;
+          case "5": str_val = "幼稚園教諭";break;
+          case "6": str_val = "調理師";break;
+          case "7": str_val = "看護・医療職種";break;
+          case "8": str_val = "看護師";break;
+          case "9": str_val = "看護助手";break;
+          case "10": str_val = "医療・介護保険事務";break;
+          case "11": str_val = "医師";break;
+          case "12": str_val = "保健師";break;
+          case "13": str_val = "薬剤師";break;
+          case "14": str_val = "理学療法士";break;
+          case "15": str_val = "作業療法士";break;
+          case "16": str_val = "診療放射線技師";break;
+          case "17": str_val = "臨床検査技師";break;
+          case "18": str_val = "臨床工学技士";break;
+          case "19": str_val = "診療情報管理士";break;
+          case "20": str_val = "管理栄養士";break;
+          case "21": str_val = "栄養士";break;
+          case "22": str_val = "調理師";break;
+          case "23": str_val = "言語聴覚士";break;
+          case "24": str_val = "歯科衛生士";break;
+          case "25": str_val = "リフレクソロジスト";break;
+          case "26": str_val = "カイロプラクター";break;
+          case "27": str_val = "整体師";break;
+          case "28": str_val = "あんま、マッサージ指圧師";break;
+          case "29": str_val = "介護職種";break;
+          case "30": str_val = "ホームへルパー";break;
+          case "31": str_val = "介護職";break;
+          case "32": str_val = "介護職員初任者研修";break;
+          case "33": str_val = "介護職員実務者研修";break;
+          case "34": str_val = "介護福祉士";break;
+          case "35": str_val = "ケアマネージャー";break;
+          case "36": str_val = "社会福祉士";break;
+          case "37": str_val = "社会福祉主事";break;
+          case "38": str_val = "福祉用具専門相談員";break;
+          case "39": str_val = "一般事務";break;
+            }
+            str += str_val+'、';
+          }
+          str= str.slice(0,-1); 
+
+
+        html += '<td>'+str+'</td>';
+        html += '</tr>';
+        html += '<tr>';
+        html += '<th>雇用形態</th>';
+
+        if(json[i].EmploymentType.length > 0) {
+          ary = json[i].EmploymentType.split(',');
+        }
+        str = "";
+        str_val = "";
+        
+      for(var t=0;t<ary.length;t++) {
+        switch(ary[t]) {
+          case "1":
+            str_val = "派遣";break;
+          case "2":
+            str_val = "紹介予定派遣";break;
+          case "3":
+            str_val = "正社員（紹介）";break;
+          case "4":
+            str_val = "パート";break;
+          case "5":
+            str_val = "契約社員";break;
+          case "6":
+            str_val = "その他";break;
+        }
+        str += str_val+'、';
+      }
+      str= str.slice(0,-1); 
+
+
+      html += '<td>'+str+'</td>';
+      html += '</tr>';
+      html += '<tr>';
+      html += '<th>勤務地</th>';
+
+      html += '<td>'+json[i].Area_Name+'</td>';
+      html += '</tr>';
+      html += '<tr>';
+      html += '<th>最寄駅</th>';
+
+      var NearestStation=json[i].NearestStation;
+      if(json[i].NearestStation.length>60) {
+        NearestStation=NearestStation.slice(0,30)+"　・・・";
+       }
+
+
+      html += '<td>'+NearestStation+'</td>';
+      html += '</tr>';
+      html += '<tr>';
+      html += '<th>給与</th>';
+
+      var PayrollFormMemo=json[i].PayrollFormMemo;
+      if(json[i].PayrollFormMemo.length>70) {
+        PayrollFormMemo=PayrollFormMemo.slice(0,30)+"　・・・";
+       }
+
+
+      html += '<td>'+PayrollFormMemo+'</td>';
+      html += '</tr>';
+      html += '</table>';
+
+      html += '<a href="'+result_url+'" class="btn1" onClick="onAction(\''+result_url+'\',\'_blank\'); return false;">詳細を見る</a>';
+      
+      html += '<div class="telbox"><span>お電話でのお問合せ・ご応募</span><br>';
+      html += '<div class="tel">';
+      html += '<a href="#" onclick="goog_report_conversion(\'tel:0120-106-391\');yahoo_report_conversion(undefined);" data-tel-no="tel:0120-106-391"><p>0120-106-391</p></a><br>';
+      html += '受付時間<span>平日9：00〜21：00</span>';
+      html += '</div>';
+      html += '</div>';
+      var _test_folder = "";
+      var insert_url = 'https://www.st-navi.jp'+_test_folder+'/form.html?jobid[]='+json[i].JobId;
+
+      html += '<a href="'+insert_url+'" class="btn2" onclick="_gaq.push([\'_link\',\''+insert_url+'\']); return false;" target="_blank">WEBから応募する<br>';
+      html += '<span>（24時間受付）</span></a>';
+      html += '</div><!--/CArea-->';
+      html += '<!-- <div class="RArea">';
+      html += '</div><!--/RArea-->';
+      html += '</div><!--/RCon-->';
+      html += '</div><!--/result-->';
+      html += '';
+    }
+    
+    $('#listData').append(html);
+
+/*
+		$('#listData').append(data); // 20170602 add
+		if ( data.indexOf('moreEnd') == -1) {
+		} else {
+			loadFlag = 0;
+		}
+*/
+
+	}
+	})
+	.fail(function(jqXHR, textStatus, errorThrown){
+console.log("ee");
+	});
+
+}
+
+
+
+
+
+
+
+-->
+
+</script>
+
+
+
+
+</body>
+</html>
